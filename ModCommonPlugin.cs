@@ -34,8 +34,8 @@ namespace ModCommon
                 dontDoNetwork = true;
             } else
             {
-                // r2api ILLine crashes if any other mod has applied the patch, so we avoid that :)
-                HarmonyInstance.PatchAll(typeof(ILLine));
+                // r2api ILLine crashes if any other mod has applied the patch, so we avoid that :) also fixes console
+                HarmonyInstance.PatchAll(typeof(SmallPatches));
             }
         }
 
@@ -59,7 +59,7 @@ namespace ModCommon
     }
 
     [HarmonyPatch]
-    internal static class ILLine
+    internal static class SmallPatches
     {
         [HarmonyILManipulator]
         [HarmonyPatch(typeof(StackTrace), "AddFrames")]
@@ -86,6 +86,10 @@ namespace ModCommon
 
             return "IL_" + instace.GetILOffset().ToString("X4");
         }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(UnitySystemConsoleRedirector), nameof(UnitySystemConsoleRedirector.Redirect))]
+        internal static bool StopConsoleRedirect() => false;
     }
 
     internal static class NetworkCompatabilityR2API
@@ -101,5 +105,6 @@ namespace ModCommon
         }
     }
 
+    [AttributeUsage(AttributeTargets.Class)]
     public class NetworkModlistExceptionAttribute : Attribute { }
 }
