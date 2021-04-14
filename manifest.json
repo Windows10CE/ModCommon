@@ -1,0 +1,9 @@
+{
+	"name": "ModCommon",
+	"version_number": "1.0.0",
+	"website_url": "https://github.com/Windows10CE/ModCommon",
+	"description": "Small dependency containing all the necessities for mod developers",
+	"dependencies": [
+		"bbepis-BepInExPack-5.4.9"
+	]
+}
