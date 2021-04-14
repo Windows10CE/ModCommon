@@ -10,3 +10,5 @@ That's it.
 
 ## I want to use this and don't want to be in the network list
 Add a reference to ModCommon and add `[ModCommon.NetworkModlistException]` next to your BepInPlugin attribute.
+
+You can also add an attribute you make yourself called `ManualNetworkRegistrationAttribute` to your assembly, making the namespace `R2API.Utils.ManualNetworkRegistrationAttribute` will also exclude it from R2API.

@@ -17,7 +17,7 @@ namespace ModCommon
     {
         public const string ModGUID = "com.Windows10CE.ModCommon";
         public const string ModName = "ModCommon";
-        public const string ModVer = "1.0.0";
+        public const string ModVer = "1.0.1";
 
         private static Harmony HarmonyInstance = new Harmony(ModGUID);
         private static bool dontDoNetwork = false;
@@ -47,7 +47,7 @@ namespace ModCommon
             var networkModList = new List<string>();
             foreach (var mod in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
             {
-                if (!mod.Instance.GetType().CustomAttributes.Any(x => x.AttributeType == typeof(NetworkModlistExceptionAttribute)))
+                if (!mod.Instance.GetType().CustomAttributes.Any(x => x.AttributeType == typeof(NetworkModlistExceptionAttribute)) && !mod.Instance.GetType().Assembly.CustomAttributes.Any(x => x.AttributeType.Name == "ManualNetworkRegistrationAttribute"))
                 {
                     Logger.LogMessage($"Adding {mod.Metadata.GUID} to the network mod list...");
                     networkModList.Add(mod.Metadata.GUID + ";" + mod.Metadata.Version);
