@@ -12,26 +12,26 @@ namespace ModCommon
 {
     [BepInPlugin(ModGUID, ModName, ModVer)]
     [BepInDependency("com.bepis.r2api", BepInDependency.DependencyFlags.SoftDependency)]
-    [NetworkModlistException]
     public class ModCommonPlugin : BaseUnityPlugin
     {
         public const string ModGUID = "com.Windows10CE.ModCommon";
         public const string ModName = "ModCommon";
-        public const string ModVer = "1.0.1";
+        public const string ModVer = "2.0.0";
 
         private static Harmony HarmonyInstance = new Harmony(ModGUID);
-        private static bool dontDoNetwork = false;
 
         public void Awake()
         {
             // Set isModded flag to disable Trials and put players in another modded queue
             RoR2Application.isModded = true;
 
+            // Provide barebones language support
+            HarmonyInstance.PatchAll(typeof(LanguageTokens));
+
             if (BepInEx.Bootstrap.Chainloader.PluginInfos.Keys.Contains("com.bepis.r2api"))
             {
-                // Instead of doing our own network mod list, let r2api do it for us
+                // Keep ourself off the modlist
                 HarmonyInstance.Patch(AccessTools.Method("R2API.Utils.NetworkCompatibilityHandler:TryGetNetworkCompatibility"), postfix: new HarmonyMethod(AccessTools.Method(typeof(NetworkCompatabilityR2API), nameof(NetworkCompatabilityR2API.CatchNetworkCompatAttribute))));
-                dontDoNetwork = true;
             } else
             {
                 // r2api ILLine crashes if any other mod has applied the patch, so we avoid that :) also fixes console
@@ -41,20 +41,44 @@ namespace ModCommon
 
         public void Start()
         {
-            if (dontDoNetwork)
-                return;
-
             var networkModList = new List<string>();
             foreach (var mod in BepInEx.Bootstrap.Chainloader.PluginInfos.Values)
             {
-                if (!mod.Instance.GetType().CustomAttributes.Any(x => x.AttributeType == typeof(NetworkModlistExceptionAttribute)) && !mod.Instance.GetType().Assembly.CustomAttributes.Any(x => x.AttributeType.Name == "ManualNetworkRegistrationAttribute"))
+                if (mod.Instance.GetType().CustomAttributes.Any(x => x.AttributeType == typeof(NetworkModlistIncludeAttribute)))
                 {
                     Logger.LogMessage($"Adding {mod.Metadata.GUID} to the network mod list...");
                     networkModList.Add(mod.Metadata.GUID + ";" + mod.Metadata.Version);
                 }
             }
 
-            NetworkModCompatibilityHelper.networkModList = NetworkModCompatibilityHelper.networkModList.Count() > 0 ? NetworkModCompatibilityHelper.networkModList.Union(networkModList) : networkModList;
+            NetworkModCompatibilityHelper.networkModList = NetworkModCompatibilityHelper.networkModList.Concat(networkModList).Distinct();
+        }
+    }
+
+    [HarmonyPatch]
+    public static class LanguageTokens
+    {
+        private static Dictionary<string, string> tokens = new Dictionary<string, string>();
+
+        public static void Add(string token, string val)
+        {
+            if (!tokens.ContainsKey(token))
+                tokens.Add(token, val);
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Language), nameof(Language.GetLocalizedStringByToken))]
+        internal static void GetTokenPostfix(string token, ref string __result)
+        {
+            if (tokens.TryGetValue(token, out string val))
+                __result = val;
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(Language), nameof(Language.TokenIsRegistered))]
+        internal static void TokenExistsPostfix(string token, ref bool __result)
+        {
+            __result |= tokens.ContainsKey(token);
         }
     }
 
@@ -94,17 +118,13 @@ namespace ModCommon
 
     internal static class NetworkCompatabilityR2API
     {
-        private static MethodInfo SetCompatMethod = null;
-        
         internal static void CatchNetworkCompatAttribute(Type baseUnityPluginType, ref object networkCompatibility)
         {
-            if (SetCompatMethod is null)
-                SetCompatMethod = networkCompatibility.GetType().GetProperty("CompatibilityLevel").GetSetMethod(true);
-            if (baseUnityPluginType.CustomAttributes.Any(x => x.AttributeType == typeof(NetworkModlistExceptionAttribute)))
-                SetCompatMethod.Invoke(networkCompatibility, new object[] { 0 });
+            if (baseUnityPluginType == typeof(ModCommonPlugin))
+                networkCompatibility.GetType().GetProperty("CompatibilityLevel").GetSetMethod(true).Invoke(networkCompatibility, new object[] { 0 });
         }
     }
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class NetworkModlistExceptionAttribute : Attribute { }
+    public class NetworkModlistIncludeAttribute : Attribute { }
 }
