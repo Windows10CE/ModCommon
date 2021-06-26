@@ -16,7 +16,7 @@ namespace ModCommon
     {
         public const string ModGUID = "com.Windows10CE.ModCommon";
         public const string ModName = "ModCommon";
-        public const string ModVer = "2.0.0";
+        public const string ModVer = "2.1.0";
 
         private static Harmony HarmonyInstance = new Harmony(ModGUID);
 
@@ -28,11 +28,7 @@ namespace ModCommon
             // Provide barebones language support
             HarmonyInstance.PatchAll(typeof(LanguageTokens));
 
-            if (BepInEx.Bootstrap.Chainloader.PluginInfos.Keys.Contains("com.bepis.r2api"))
-            {
-                // Keep ourself off the modlist
-                HarmonyInstance.Patch(AccessTools.Method("R2API.Utils.NetworkCompatibilityHandler:TryGetNetworkCompatibility"), postfix: new HarmonyMethod(AccessTools.Method(typeof(NetworkCompatabilityR2API), nameof(NetworkCompatabilityR2API.CatchNetworkCompatAttribute))));
-            } else
+            if (!BepInEx.Bootstrap.Chainloader.PluginInfos.Keys.Contains("com.bepis.r2api"))
             {
                 // r2api ILLine crashes if any other mod has applied the patch, so we avoid that :) also fixes console
                 HarmonyInstance.PatchAll(typeof(SmallPatches));
@@ -114,15 +110,6 @@ namespace ModCommon
         [HarmonyPrefix]
         [HarmonyPatch(typeof(UnitySystemConsoleRedirector), nameof(UnitySystemConsoleRedirector.Redirect))]
         internal static bool StopConsoleRedirect() => false;
-    }
-
-    internal static class NetworkCompatabilityR2API
-    {
-        internal static void CatchNetworkCompatAttribute(Type baseUnityPluginType, ref object networkCompatibility)
-        {
-            if (baseUnityPluginType == typeof(ModCommonPlugin))
-                networkCompatibility.GetType().GetProperty("CompatibilityLevel").GetSetMethod(true).Invoke(networkCompatibility, new object[] { 0 });
-        }
     }
 
     [AttributeUsage(AttributeTargets.Class)]
